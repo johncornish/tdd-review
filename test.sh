@@ -191,6 +191,16 @@ test_display_commit_shows_message_and_files() {
     rm -rf "$test_repo"
 }
 
+test_main_help_shows_commands() {
+    local result
+    result=$(echo "h" | main_loop 2>&1 || true)
+
+    [[ "$result" == *"next"* ]] || { echo "  FAIL: help missing 'next'"; ((FAIL++)); return; }
+    [[ "$result" == *"quit"* ]] || { echo "  FAIL: help missing 'quit'"; ((FAIL++)); return; }
+    echo "  PASS: help shows commands"
+    ((PASS++))
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -204,6 +214,7 @@ run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
 run_test test_display_commit_shows_message_and_files
+run_test test_main_help_shows_commands
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
