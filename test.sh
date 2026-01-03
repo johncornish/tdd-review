@@ -98,6 +98,28 @@ test_get_commits_lists_commits_in_range() {
     rm -rf "$test_repo"
 }
 
+test_get_commit_message() {
+    # Create temp repo
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "my commit message"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    local result
+    result=$(get_commit_message "$sha")
+
+    assert_equals "my commit message" "$result" "should return commit message"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -107,6 +129,7 @@ run_test test_parse_commit_message_extracts_passing_tests
 run_test test_parse_commit_message_extracts_fail_to_pass_tests
 run_test test_parse_config_reads_commit_range
 run_test test_get_commits_lists_commits_in_range
+run_test test_get_commit_message
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

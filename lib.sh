@@ -16,3 +16,8 @@ get_commits() {
     local range="$1"
     git rev-list --reverse "$range"
 }
+
+get_commit_message() {
+    local sha="$1"
+    git log -1 --format=%B "$sha" | head -1
+}
