@@ -201,6 +201,16 @@ test_main_quit_exits() {
     assert_equals "0" "$status" "quit should exit cleanly"
 }
 
+test_main_help_shows_commands() {
+    local result
+    result=$(printf "h\nq\n" | bash -c "source '$SCRIPT_DIR/lib.sh'; main_loop" 2>&1)
+
+    [[ "$result" == *"next"* ]] || { echo "  FAIL: help missing 'next'"; ((FAIL++)); return; }
+    [[ "$result" == *"quit"* ]] || { echo "  FAIL: help missing 'quit'"; ((FAIL++)); return; }
+    echo "  PASS: help shows commands"
+    ((PASS++))
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -215,6 +225,7 @@ run_test test_get_changed_files
 run_test test_add_and_get_note
 run_test test_display_commit_shows_message_and_files
 run_test test_main_quit_exits
+run_test test_main_help_shows_commands
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
