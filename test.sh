@@ -46,12 +46,29 @@ Transformation: (nil->constant)"
 test_single_item" "$result" "should extract test names"
 }
 
+test_parse_commit_message_extracts_fail_to_pass_tests() {
+    local msg="[TPP] (unconditional->if): Add conditional
+
+Tests:
+[PASS] test_existing
+[FAIL->PASS] test_new_case
+
+Transformation: (unconditional->if)"
+
+    local result
+    result=$(parse_test_names "$msg")
+
+    assert_equals "test_existing
+test_new_case" "$result" "should extract both PASS and FAIL->PASS"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
 echo
 
 run_test test_parse_commit_message_extracts_passing_tests
+run_test test_parse_commit_message_extracts_fail_to_pass_tests
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

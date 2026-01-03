@@ -3,5 +3,5 @@
 
 parse_test_names() {
     local msg="$1"
-    echo "$msg" | grep -oP '\[PASS\]\s+\K\S+'
+    echo "$msg" | grep -oP '\[(PASS|FAIL->PASS)\]\s+\K\S+'
 }
