@@ -65,6 +65,12 @@ show_help() {
 main_loop() {
     while read -r cmd; do
         case $cmd in
+            n|next)
+                if [[ $CURRENT -lt $((${#COMMITS[@]}-1)) ]]; then
+                    ((CURRENT++))
+                    display_commit "${COMMITS[$CURRENT]}"
+                fi
+                ;;
             h|help) show_help ;;
             q|quit) break ;;
         esac

@@ -211,6 +211,33 @@ test_main_help_shows_commands() {
     ((PASS++))
 }
 
+test_main_next_advances_commit() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+
+    local result
+    result=$(printf "n\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(\$(git rev-list --reverse HEAD))
+        CURRENT=0
+        main_loop
+    " 2>&1)
+
+    [[ "$result" == *"second"* ]] || { echo "  FAIL: next should show second commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo "  PASS: next advances to next commit"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -226,6 +253,7 @@ run_test test_add_and_get_note
 run_test test_display_commit_shows_message_and_files
 run_test test_main_quit_exits
 run_test test_main_help_shows_commands
+run_test test_main_next_advances_commit
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
