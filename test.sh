@@ -62,6 +62,18 @@ Transformation: (unconditional->if)"
 test_new_case" "$result" "should extract both PASS and FAIL->PASS"
 }
 
+test_parse_config_reads_commit_range() {
+    local config_file
+    config_file=$(mktemp)
+    echo 'COMMIT_RANGE="main..HEAD"' > "$config_file"
+
+    local result
+    result=$(parse_config "$config_file" "COMMIT_RANGE")
+
+    assert_equals "main..HEAD" "$result" "should read COMMIT_RANGE"
+    rm "$config_file"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -69,6 +81,7 @@ echo
 
 run_test test_parse_commit_message_extracts_passing_tests
 run_test test_parse_commit_message_extracts_fail_to_pass_tests
+run_test test_parse_config_reads_commit_range
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
