@@ -143,6 +143,28 @@ file3.txt" "$result" "should list changed files"
     rm -rf "$test_repo"
 }
 
+test_add_and_get_note() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    add_note "$sha" "TPP violation" "commit too large"
+    local result
+    result=$(get_note "$sha")
+
+    assert_equals "TPP violation: commit too large" "$result" "should store and retrieve note"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -154,6 +176,7 @@ run_test test_parse_config_reads_commit_range
 run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
 run_test test_get_changed_files
+run_test test_add_and_get_note
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

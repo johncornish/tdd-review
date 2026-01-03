@@ -26,3 +26,15 @@ get_changed_files() {
     local sha="$1"
     git diff-tree --no-commit-id --name-only -r "$sha"
 }
+
+add_note() {
+    local sha="$1"
+    local category="$2"
+    local message="$3"
+    git notes --ref=tdd-review add -f -m "${category}: ${message}" "$sha"
+}
+
+get_note() {
+    local sha="$1"
+    git notes --ref=tdd-review show "$sha" 2>/dev/null || echo ""
+}
