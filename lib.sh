@@ -11,3 +11,8 @@ parse_config() {
     local key="$2"
     grep "^${key}=" "$file" | cut -d'"' -f2
 }
+
+get_commits() {
+    local range="$1"
+    git rev-list --reverse "$range"
+}

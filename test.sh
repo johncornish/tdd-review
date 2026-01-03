@@ -74,6 +74,30 @@ test_parse_config_reads_commit_range() {
     rm "$config_file"
 }
 
+test_get_commits_lists_commits_in_range() {
+    # Create temp repo
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    # Create commits
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+    echo "c" > file.txt && git add . && git commit -q -m "third"
+
+    local result
+    result=$(get_commits "HEAD~2..HEAD" | wc -l)
+
+    assert_equals "2" "$result" "should list 2 commits"
+
+    # Cleanup
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -82,6 +106,7 @@ echo
 run_test test_parse_commit_message_extracts_passing_tests
 run_test test_parse_commit_message_extracts_fail_to_pass_tests
 run_test test_parse_config_reads_commit_range
+run_test test_get_commits_lists_commits_in_range
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
