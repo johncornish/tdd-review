@@ -38,3 +38,18 @@ get_note() {
     local sha="$1"
     git notes --ref=tdd-review show "$sha" 2>/dev/null || echo ""
 }
+
+display_commit() {
+    local sha="$1"
+    local short_sha="${sha:0:7}"
+    local msg
+    msg=$(get_commit_message "$sha")
+    local files
+    files=$(get_changed_files "$sha")
+
+    echo "=== Commit: $short_sha ==="
+    echo "Message: $msg"
+    echo ""
+    echo "Files changed:"
+    echo "$files" | sed 's/^/  /'
+}

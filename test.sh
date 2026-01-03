@@ -165,6 +165,32 @@ test_add_and_get_note() {
     rm -rf "$test_repo"
 }
 
+test_display_commit_shows_message_and_files() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "initial"
+    echo "b" > feature.txt && git add . && git commit -q -m "add feature"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    local result
+    result=$(display_commit "$sha")
+
+    # Should contain message and files
+    [[ "$result" == *"add feature"* ]] || { echo "  FAIL: missing commit message"; ((FAIL++)); return; }
+    [[ "$result" == *"feature.txt"* ]] || { echo "  FAIL: missing changed files"; ((FAIL++)); return; }
+    echo "  PASS: shows message and files"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -177,6 +203,7 @@ run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
+run_test test_display_commit_shows_message_and_files
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="
