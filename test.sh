@@ -1,7 +1,8 @@
 #!/bin/bash
 # Simple test runner - one test file, one implementation file
 
-source "$(dirname "$0")/lib.sh"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
 
 PASS=0
 FAIL=0
@@ -191,14 +192,13 @@ test_display_commit_shows_message_and_files() {
     rm -rf "$test_repo"
 }
 
-test_main_help_shows_commands() {
-    local result
-    result=$(echo "h" | main_loop 2>&1 || true)
+test_main_quit_exits() {
+    local status
+    printf "q\n" | timeout 1 bash -c "source '$SCRIPT_DIR/lib.sh'; main_loop" >/dev/null 2>&1
+    status=$?
 
-    [[ "$result" == *"next"* ]] || { echo "  FAIL: help missing 'next'"; ((FAIL++)); return; }
-    [[ "$result" == *"quit"* ]] || { echo "  FAIL: help missing 'quit'"; ((FAIL++)); return; }
-    echo "  PASS: help shows commands"
-    ((PASS++))
+    # 0 = exited cleanly, 124 = timeout (hung)
+    assert_equals "0" "$status" "quit should exit cleanly"
 }
 
 # --- RUN TESTS ---
@@ -214,7 +214,7 @@ run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
 run_test test_display_commit_shows_message_and_files
-run_test test_main_help_shows_commands
+run_test test_main_quit_exits
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

@@ -54,20 +54,10 @@ display_commit() {
     echo "$files" | sed 's/^/  /'
 }
 
-show_help() {
-    echo "Commands:"
-    echo "  n/next  - Next commit"
-    echo "  p/prev  - Previous commit"
-    echo "  f/flag  - Flag this commit"
-    echo "  q/quit  - Quit"
-}
-
 main_loop() {
     while read -r cmd; do
         case $cmd in
-            h|help) show_help ;;
             q|quit) break ;;
-            *) echo "Unknown: $cmd" ;;
         esac
     done
 }
