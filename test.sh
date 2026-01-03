@@ -238,6 +238,132 @@ test_main_next_advances_commit() {
     rm -rf "$test_repo"
 }
 
+test_main_prev_goes_back() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+
+    local result
+    result=$(printf "n\np\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(\$(git rev-list --reverse HEAD))
+        CURRENT=0
+        main_loop
+    " 2>&1)
+
+    # After n, p - should be back at first
+    [[ "$result" == *"first"* ]] || { echo "  FAIL: prev should show first commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo "  PASS: prev goes back to previous commit"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_squash_range_combines_commits() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "initial"
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+    echo "c" > file.txt && git add . && git commit -q -m "third"
+
+    # Count before: 3 commits
+    local before
+    before=$(git rev-list --count HEAD)
+
+    squash_range "HEAD~2..HEAD" "squashed commits"
+
+    # Count after: 2 commits (initial + squashed)
+    local after
+    after=$(git rev-list --count HEAD)
+
+    assert_equals "3" "$before" "should have 3 commits before"
+    assert_equals "2" "$after" "should have 2 commits after squash"
+
+    # Check the message
+    local msg
+    msg=$(git log -1 --format=%s)
+    assert_equals "squashed commits" "$msg" "should have squash message"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_aggregate_feedback_compiles_notes() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    # Need 3 commits so range HEAD~2..HEAD includes 2 commits
+    echo "a" > file.txt && git add . && git commit -q -m "initial"
+
+    echo "b" > file.txt && git add . && git commit -q -m "first flagged"
+    local sha1
+    sha1=$(git rev-parse HEAD)
+    add_note "$sha1" "TPP violation" "used switch case"
+
+    echo "c" > file.txt && git add . && git commit -q -m "second commit"
+    local sha2
+    sha2=$(git rev-parse HEAD)
+    add_note "$sha2" "commit too large" "combined two transformations"
+
+    local result
+    result=$(aggregate_feedback "HEAD~2..HEAD")
+
+    [[ "$result" == *"TPP violation"* ]] || { echo "  FAIL: missing first note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"used switch case"* ]] || { echo "  FAIL: missing first note message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"commit too large"* ]] || { echo "  FAIL: missing second note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"second commit"* ]] || { echo "  FAIL: missing commit message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo "  PASS: aggregates all notes with context"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_main_flag_adds_note() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    # Flag with "TPP violation" category and "too large" message
+    printf "f\nTPP violation\ntoo large\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(\$(git rev-list --reverse HEAD))
+        CURRENT=0
+        main_loop
+    " 2>&1
+
+    local note
+    note=$(git notes --ref=tdd-review show "$sha" 2>/dev/null)
+
+    assert_equals "TPP violation: too large" "$note" "flag should add git note"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -250,10 +376,14 @@ run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
+run_test test_squash_range_combines_commits
+run_test test_aggregate_feedback_compiles_notes
 run_test test_display_commit_shows_message_and_files
 run_test test_main_quit_exits
 run_test test_main_help_shows_commands
 run_test test_main_next_advances_commit
+run_test test_main_prev_goes_back
+run_test test_main_flag_adds_note
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

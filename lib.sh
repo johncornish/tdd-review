@@ -39,6 +39,37 @@ get_note() {
     git notes --ref=tdd-review show "$sha" 2>/dev/null || echo ""
 }
 
+squash_range() {
+    local range="$1"
+    local message="$2"
+    # Extract the base commit from range (e.g., HEAD~2 from HEAD~2..HEAD)
+    local base="${range%..*}"
+    git reset --soft "$base"
+    git commit -q -m "$message"
+}
+
+aggregate_feedback() {
+    local range="$1"
+    local commits
+    commits=$(get_commits "$range")
+
+    echo "# TDD Review Feedback"
+    echo
+
+    for sha in $commits; do
+        local note
+        note=$(get_note "$sha")
+        if [[ -n "$note" ]]; then
+            local msg
+            msg=$(get_commit_message "$sha")
+            local short_sha="${sha:0:7}"
+            echo "## Commit: $short_sha - $msg"
+            echo "**Flag**: $note"
+            echo
+        fi
+    done
+}
+
 display_commit() {
     local sha="$1"
     local short_sha="${sha:0:7}"
@@ -70,6 +101,18 @@ main_loop() {
                     ((CURRENT++))
                     display_commit "${COMMITS[$CURRENT]}"
                 fi
+                ;;
+            p|prev)
+                if [[ $CURRENT -gt 0 ]]; then
+                    ((CURRENT--))
+                    display_commit "${COMMITS[$CURRENT]}"
+                fi
+                ;;
+            f|flag)
+                local category message
+                read -r category
+                read -r message
+                add_note "${COMMITS[$CURRENT]}" "$category" "$message"
                 ;;
             h|help) show_help ;;
             q|quit) break ;;
