@@ -120,6 +120,29 @@ test_get_commit_message() {
     rm -rf "$test_repo"
 }
 
+test_get_changed_files() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file1.txt && git add . && git commit -q -m "first"
+    echo "b" > file2.txt && echo "c" > file3.txt && git add . && git commit -q -m "add two files"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    local result
+    result=$(get_changed_files "$sha")
+
+    assert_equals "file2.txt
+file3.txt" "$result" "should list changed files"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -130,6 +153,7 @@ run_test test_parse_commit_message_extracts_fail_to_pass_tests
 run_test test_parse_config_reads_commit_range
 run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
+run_test test_get_changed_files
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

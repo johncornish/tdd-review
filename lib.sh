@@ -21,3 +21,8 @@ get_commit_message() {
     local sha="$1"
     git log -1 --format=%B "$sha" | head -1
 }
+
+get_changed_files() {
+    local sha="$1"
+    git diff-tree --no-commit-id --name-only -r "$sha"
+}
