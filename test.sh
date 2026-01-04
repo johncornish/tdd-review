@@ -166,6 +166,30 @@ test_add_and_get_note() {
     rm -rf "$test_repo"
 }
 
+test_checkout_commit_switches_to_sha() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    local sha1
+    sha1=$(git rev-parse HEAD)
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+
+    # Checkout first commit
+    checkout_commit "$sha1"
+
+    local current
+    current=$(git rev-parse HEAD)
+    assert_equals "$sha1" "$current" "should checkout to specified SHA"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_display_commit_shows_message_and_files() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -426,6 +450,7 @@ run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
+run_test test_checkout_commit_switches_to_sha
 run_test test_squash_range_combines_commits
 run_test test_aggregate_feedback_compiles_notes
 run_test test_display_commit_shows_message_and_files

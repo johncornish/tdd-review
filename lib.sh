@@ -27,6 +27,11 @@ get_changed_files() {
     git diff-tree --no-commit-id --name-only -r "$sha"
 }
 
+checkout_commit() {
+    local sha="$1"
+    git checkout -q "$sha"
+}
+
 add_note() {
     local sha="$1"
     local category="$2"
