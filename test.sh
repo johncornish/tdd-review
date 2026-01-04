@@ -364,6 +364,56 @@ test_main_flag_adds_note() {
     rm -rf "$test_repo"
 }
 
+test_tdd_review_reads_config_file() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+
+    # Create config file
+    echo 'COMMIT_RANGE="HEAD"' > .tdd-review.conf
+
+    # Run without arguments - should read from config
+    local result
+    result=$(printf "q\n" | "$SCRIPT_DIR/tdd-review" 2>&1)
+
+    [[ "$result" == *"first commit"* ]] || { echo "  FAIL: should read range from config"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo "  PASS: reads commit range from config file"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_tdd_review_binary_runs() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+
+    # Run the binary with quit command
+    local result
+    result=$(printf "q\n" | "$SCRIPT_DIR/tdd-review" HEAD 2>&1)
+
+    # Should show the first commit on startup
+    [[ "$result" == *"first commit"* ]] || { echo "  FAIL: should display first commit on startup"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo "  PASS: binary runs and displays first commit"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 # --- RUN TESTS ---
 
 echo "=== Running Tests ==="
@@ -384,6 +434,8 @@ run_test test_main_help_shows_commands
 run_test test_main_next_advances_commit
 run_test test_main_prev_goes_back
 run_test test_main_flag_adds_note
+run_test test_tdd_review_reads_config_file
+run_test test_tdd_review_binary_runs
 
 echo
 echo "=== Results: $PASS passed, $FAIL failed ==="

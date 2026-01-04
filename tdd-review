@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/lib.sh"
+
+CONFIG_FILE=".tdd-review.conf"
+
+usage() {
+    echo "Usage: tdd-review [commit-range]"
+    echo ""
+    echo "If no range provided, reads from .tdd-review.conf"
+    echo ""
+    echo "Examples:"
+    echo "  tdd-review HEAD~10..HEAD"
+    echo "  tdd-review main..HEAD"
+    echo "  echo 'COMMIT_RANGE=\"main..HEAD\"' > .tdd-review.conf && tdd-review"
+    exit 1
+}
+
+# Determine commit range
+if [[ $# -ge 1 ]]; then
+    RANGE="$1"
+elif [[ -f "$CONFIG_FILE" ]]; then
+    RANGE=$(parse_config "$CONFIG_FILE" "COMMIT_RANGE")
+    if [[ -z "$RANGE" ]]; then
+        echo "Error: COMMIT_RANGE not found in $CONFIG_FILE"
+        exit 1
+    fi
+else
+    usage
+fi
+
+# Load commits
+COMMITS=($(get_commits "$RANGE"))
+CURRENT=0
+
+if [[ ${#COMMITS[@]} -eq 0 ]]; then
+    echo "No commits found in range: $RANGE"
+    exit 1
+fi
+
+echo "TDD Review: ${#COMMITS[@]} commits"
+echo "Commands: n/next, p/prev, f/flag, h/help, q/quit"
+echo ""
+
+display_commit "${COMMITS[$CURRENT]}"
+
+main_loop
