@@ -129,9 +129,12 @@ main_loop() {
                 ;;
             f|flag)
                 local category message
+                echo -n "Category: "
                 read -r category
+                echo -n "Message: "
                 read -r message
                 add_note "${COMMITS[$CURRENT]}" "$category" "$message"
+                echo "Flagged."
                 ;;
             h|help) show_help ;;
             q|quit) break ;;

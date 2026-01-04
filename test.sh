@@ -367,6 +367,21 @@ test_aggregate_feedback_compiles_notes() {
     rm -rf "$test_repo"
 }
 
+test_main_flag_shows_prompts() {
+    local result
+    result=$(printf "f\ncat\nmsg\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(abc123)
+        CURRENT=0
+        main_loop
+    " 2>&1)
+
+    [[ "$result" == *"Category:"* ]] || { echo "  FAIL: should prompt for category"; ((FAIL++)); return; }
+    [[ "$result" == *"Message:"* ]] || { echo "  FAIL: should prompt for message"; ((FAIL++)); return; }
+    echo "  PASS: flag shows prompts"
+    ((PASS++))
+}
+
 test_main_flag_adds_note() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -467,6 +482,7 @@ run_test test_main_quit_exits
 run_test test_main_help_shows_commands
 run_test test_main_next_advances_commit
 run_test test_main_prev_goes_back
+run_test test_main_flag_shows_prompts
 run_test test_main_flag_adds_note
 run_test test_tdd_review_reads_config_file
 run_test test_tdd_review_binary_runs
