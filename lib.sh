@@ -111,7 +111,9 @@ show_help() {
 }
 
 main_loop() {
-    while read -r cmd; do
+    while read -n 1 cmd; do
+        # Consume rest of line if any (handles piped input with newlines)
+        read -r _ 2>/dev/null || true
         case $cmd in
             n|next)
                 if [[ $CURRENT -lt $((${#COMMITS[@]}-1)) ]]; then
