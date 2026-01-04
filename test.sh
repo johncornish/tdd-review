@@ -166,6 +166,14 @@ test_add_and_get_note() {
     rm -rf "$test_repo"
 }
 
+test_get_test_command_for_file_maps_extensions() {
+    assert_equals "npm test" "$(get_test_command_for_file "app.js")" "js -> npm test"
+    assert_equals "npm test" "$(get_test_command_for_file "component.tsx")" "tsx -> npm test"
+    assert_equals "pytest" "$(get_test_command_for_file "test_main.py")" "py -> pytest"
+    assert_equals "./test.sh" "$(get_test_command_for_file "lib.sh")" "sh -> ./test.sh"
+    assert_equals "" "$(get_test_command_for_file "README.md")" "md -> empty"
+}
+
 test_checkout_commit_switches_to_sha() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -450,6 +458,7 @@ run_test test_get_commits_lists_commits_in_range
 run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
+run_test test_get_test_command_for_file_maps_extensions
 run_test test_checkout_commit_switches_to_sha
 run_test test_squash_range_combines_commits
 run_test test_aggregate_feedback_compiles_notes

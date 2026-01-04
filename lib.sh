@@ -32,6 +32,18 @@ checkout_commit() {
     git checkout -q "$sha"
 }
 
+get_test_command_for_file() {
+    local file="$1"
+    case "$file" in
+        *.js|*.ts|*.tsx) echo "npm test" ;;
+        *.py) echo "pytest" ;;
+        *.sh) echo "./test.sh" ;;
+        *.rb) echo "rspec" ;;
+        *.go) echo "go test" ;;
+        *) echo "" ;;
+    esac
+}
+
 add_note() {
     local sha="$1"
     local category="$2"
