@@ -426,6 +426,41 @@ test_main_drop_asks_confirmation() {
     ((PASS++))
 }
 
+test_main_squash_to_current() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+    echo "c" > file.txt && git add . && git commit -q -m "third"
+    echo "d" > file.txt && git add . && git commit -q -m "fourth"
+
+    # Navigate to commit 2 (index 1), then squash up to there
+    printf "n\ns\nSquashed first two\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(\$(git rev-list --reverse HEAD))
+        CURRENT=0
+        main_loop
+    " 2>&1
+
+    # Should now have 3 commits: squashed + third + fourth
+    local count
+    count=$(git rev-list --count HEAD)
+    assert_equals "3" "$count" "should have 3 commits after squash"
+
+    # First commit message should be the squash message
+    local msg
+    msg=$(git log --reverse --format=%s | head -1)
+    assert_equals "Squashed first two" "$msg" "should have squash message"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_main_drop_with_yes_resets() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -532,6 +567,7 @@ run_test test_main_prev_goes_back
 run_test test_main_flag_shows_prompts
 run_test test_main_flag_adds_note
 run_test test_main_drop_asks_confirmation
+run_test test_main_squash_to_current
 run_test test_main_drop_with_yes_resets
 run_test test_tdd_review_reads_config_file
 run_test test_tdd_review_binary_runs

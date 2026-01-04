@@ -107,6 +107,7 @@ show_help() {
     echo "  n/next  - Next commit"
     echo "  p/prev  - Previous commit"
     echo "  f/flag  - Flag this commit"
+    echo "  s/squash - Squash commits up to here"
     echo "  d/drop  - Drop remaining commits"
     echo "  q/quit  - Quit"
 }
@@ -136,6 +137,34 @@ main_loop() {
                 read -r message
                 add_note "${COMMITS[$CURRENT]}" "$category" "$message"
                 echo "Flagged."
+                ;;
+            s|squash)
+                echo -n "Squash message: "
+                read -r msg
+                # Get tree of current commit
+                local tree
+                tree=$(git rev-parse "${COMMITS[$CURRENT]}^{tree}")
+                # Create new commit with that tree
+                local new_commit
+                if git rev-parse "${COMMITS[0]}^" >/dev/null 2>&1; then
+                    # Has parent - create commit with parent
+                    local parent
+                    parent=$(git rev-parse "${COMMITS[0]}^")
+                    new_commit=$(git commit-tree "$tree" -p "$parent" -m "$msg")
+                else
+                    # No parent - create root commit
+                    new_commit=$(git commit-tree "$tree" -m "$msg")
+                fi
+                # Reset to new commit
+                git reset --hard "$new_commit"
+                # Cherry-pick remaining commits (CURRENT+1 to end)
+                local i
+                for ((i=CURRENT+1; i<${#COMMITS[@]}; i++)); do
+                    git cherry-pick "${COMMITS[$i]}" >/dev/null 2>&1
+                done
+                local squashed=$((CURRENT + 1))
+                echo "Squashed $squashed commits into 1."
+                break
                 ;;
             d|drop)
                 local remaining=$((${#COMMITS[@]} - CURRENT - 1))
