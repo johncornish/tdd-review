@@ -411,6 +411,53 @@ test_main_flag_adds_note() {
     rm -rf "$test_repo"
 }
 
+test_main_drop_asks_confirmation() {
+    local result
+    result=$(printf "d\nn\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(a b c)
+        CURRENT=0
+        main_loop
+    " 2>&1)
+
+    [[ "$result" == *"drop"* ]] || { echo "  FAIL: should mention drop"; ((FAIL++)); return; }
+    [[ "$result" == *"2"* ]] || { echo "  FAIL: should show count of commits to drop"; ((FAIL++)); return; }
+    echo "  PASS: drop asks for confirmation"
+    ((PASS++))
+}
+
+test_main_drop_with_yes_resets() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+    echo "c" > file.txt && git add . && git commit -q -m "third"
+
+    local sha1
+    sha1=$(git rev-list --reverse HEAD | head -1)
+
+    # Navigate to first commit, then drop remaining
+    printf "d\ny\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=(\$(git rev-list --reverse HEAD))
+        CURRENT=0
+        main_loop
+    " 2>&1
+
+    # Should now only have 1 commit
+    local count
+    count=$(git rev-list --count HEAD)
+    assert_equals "1" "$count" "should have dropped to 1 commit"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_tdd_review_reads_config_file() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -484,6 +531,8 @@ run_test test_main_next_advances_commit
 run_test test_main_prev_goes_back
 run_test test_main_flag_shows_prompts
 run_test test_main_flag_adds_note
+run_test test_main_drop_asks_confirmation
+run_test test_main_drop_with_yes_resets
 run_test test_tdd_review_reads_config_file
 run_test test_tdd_review_binary_runs
 

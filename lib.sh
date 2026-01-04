@@ -107,6 +107,7 @@ show_help() {
     echo "  n/next  - Next commit"
     echo "  p/prev  - Previous commit"
     echo "  f/flag  - Flag this commit"
+    echo "  d/drop  - Drop remaining commits"
     echo "  q/quit  - Quit"
 }
 
@@ -135,6 +136,17 @@ main_loop() {
                 read -r message
                 add_note "${COMMITS[$CURRENT]}" "$category" "$message"
                 echo "Flagged."
+                ;;
+            d|drop)
+                local remaining=$((${#COMMITS[@]} - CURRENT - 1))
+                echo "This will drop $remaining commits. Continue? (y/n)"
+                read -n 1 confirm
+                read -r _ 2>/dev/null || true
+                if [[ "$confirm" == "y" ]]; then
+                    git reset --hard "${COMMITS[$CURRENT]}"
+                    echo "Dropped $remaining commits."
+                    break
+                fi
                 ;;
             h|help) show_help ;;
             q|quit) break ;;
