@@ -179,6 +179,84 @@ test_get_test_command_for_file_maps_extensions() {
     assert_equals "" "$(get_test_command_for_file "README.md")" "md -> empty"
 }
 
+test_run_tests_for_commit_no_testable_files() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    # Create commit with only non-testable file
+    echo "# README" > README.md && git add . && git commit -q -m "docs only"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    # Should return 0 and produce no output
+    local result
+    result=$(run_tests_for_commit "$sha" 2>&1)
+    local status=$?
+
+    assert_equals "0" "$status" "should return 0 for no testable files"
+    assert_equals "" "$result" "should produce no output"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_run_tests_for_commit_runs_full_suite() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    # Create a simple test script
+    echo 'echo "tests passed"' > test.sh
+    chmod +x test.sh
+    git add . && git commit -q -m "add test"
+    local sha
+    sha=$(git rev-parse HEAD)
+
+    # Run with full=true
+    local result
+    result=$(run_tests_for_commit "$sha" true 2>&1)
+
+    [[ "$result" == *"tests passed"* ]] || { echo -e "  ${RED}FAIL${NC}: should run tests"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: runs full test suite"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_process_command_T_runs_full_suite() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo 'echo "full suite ran"' > test.sh
+    chmod +x test.sh
+    git add . && git commit -q -m "add test"
+
+    COMMITS=($(git rev-list HEAD))
+    CURRENT=0
+
+    local result
+    result=$(process_command "T" 2>&1)
+
+    [[ "$result" == *"full suite ran"* ]] || { echo -e "  ${RED}FAIL${NC}: T should run full test suite"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: T runs full test suite"
+    ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_checkout_commit_switches_to_sha() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -717,6 +795,9 @@ run_test test_get_commit_message
 run_test test_get_changed_files
 run_test test_add_and_get_note
 run_test test_get_test_command_for_file_maps_extensions
+run_test test_run_tests_for_commit_no_testable_files
+run_test test_run_tests_for_commit_runs_full_suite
+run_test test_process_command_T_runs_full_suite
 run_test test_checkout_commit_switches_to_sha
 run_test test_squash_range_combines_commits
 run_test test_aggregate_feedback_compiles_notes

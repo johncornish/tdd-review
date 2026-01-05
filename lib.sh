@@ -24,7 +24,7 @@ get_commit_message() {
 
 get_changed_files() {
     local sha="$1"
-    git diff-tree --no-commit-id --name-only -r "$sha"
+    git diff-tree --no-commit-id --name-only -r --root "$sha"
 }
 
 checkout_commit() {
@@ -42,6 +42,28 @@ get_test_command_for_file() {
         *.go) echo "go test" ;;
         *) echo "" ;;
     esac
+}
+
+run_tests_for_commit() {
+    local sha="$1"
+    local full="${2:-false}"
+    local changed_files test_cmd
+
+    changed_files=$(get_changed_files "$sha")
+
+    # Determine test command from first testable file
+    for file in $changed_files; do
+        test_cmd=$(get_test_command_for_file "$file")
+        [[ -n "$test_cmd" ]] && break
+    done
+
+    # No testable files - return silently
+    [[ -z "$test_cmd" ]] && return 0
+
+    if [[ "$full" == "true" ]]; then
+        echo "Running: $test_cmd"
+        eval "$test_cmd"
+    fi
 }
 
 add_note() {
@@ -106,6 +128,7 @@ show_help() {
     echo "Commands:"
     echo "  n/next  - Next commit"
     echo "  p/prev  - Previous commit"
+    echo "  T       - Run full test suite"
     echo "  f/flag  - Flag this commit"
     echo "  s/squash - Squash commits up to here"
     echo "  d/drop  - Drop remaining commits"
@@ -127,6 +150,7 @@ process_command() {
             fi
             ;;
         h|help) show_help ;;
+        T) run_tests_for_commit "${COMMITS[$CURRENT]}" true ;;
         q|quit) return 1 ;;
     esac
     return 0
@@ -143,9 +167,10 @@ main_loop() {
                 if [[ $CURRENT -ne $old_current ]]; then
                     checkout_commit "${COMMITS[$CURRENT]}"
                     display_commit "${COMMITS[$CURRENT]}"
+                    run_tests_for_commit "${COMMITS[$CURRENT]}"
                 fi
                 ;;
-            h|help)
+            h|help|T)
                 process_command "$cmd"
                 ;;
             q|quit)
