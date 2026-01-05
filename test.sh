@@ -7,16 +7,21 @@ source "$SCRIPT_DIR/lib.sh"
 PASS=0
 FAIL=0
 
+# Colors
+GREEN='\033[32m'
+RED='\033[31m'
+NC='\033[0m'
+
 assert_equals() {
     local expected="$1"
     local actual="$2"
     local msg="${3:-}"
 
     if [[ "$expected" == "$actual" ]]; then
-        echo "  PASS: $msg"
+        echo -e "  ${GREEN}PASS${NC}: $msg"
         ((PASS++))
     else
-        echo "  FAIL: $msg"
+        echo -e "  ${RED}FAIL${NC}: $msg"
         echo "    Expected: '$expected'"
         echo "    Actual:   '$actual'"
         ((FAIL++))
@@ -215,31 +220,81 @@ test_display_commit_shows_message_and_files() {
     result=$(display_commit "$sha")
 
     # Should contain message and files
-    [[ "$result" == *"add feature"* ]] || { echo "  FAIL: missing commit message"; ((FAIL++)); return; }
-    [[ "$result" == *"feature.txt"* ]] || { echo "  FAIL: missing changed files"; ((FAIL++)); return; }
-    echo "  PASS: shows message and files"
+    [[ "$result" == *"add feature"* ]] || { echo -e "  ${RED}FAIL${NC}: missing commit message"; ((FAIL++)); return; }
+    [[ "$result" == *"feature.txt"* ]] || { echo -e "  ${RED}FAIL${NC}: missing changed files"; ((FAIL++)); return; }
+    echo -e "  ${GREEN}PASS${NC}: shows message and files"
     ((PASS++))
 
     cd /
     rm -rf "$test_repo"
 }
 
-test_main_quit_exits() {
-    local status
-    printf "q\n" | timeout 1 bash -c "source '$SCRIPT_DIR/lib.sh'; main_loop" >/dev/null 2>&1
-    status=$?
+test_process_command_quit_returns_exit() {
+    # When
+    process_command "q"
+    local status=$?
 
-    # 0 = exited cleanly, 124 = timeout (hung)
-    assert_equals "0" "$status" "quit should exit cleanly"
+    # Then
+    assert_equals "1" "$status" "quit should return 1 (exit)"
 }
 
-test_main_help_shows_commands() {
-    local result
-    result=$(printf "h\nq\n" | bash -c "source '$SCRIPT_DIR/lib.sh'; main_loop" 2>&1)
+test_process_command_next_increments_current() {
+    # Given
+    COMMITS=(sha1 sha2 sha3)
+    CURRENT=0
 
-    [[ "$result" == *"next"* ]] || { echo "  FAIL: help missing 'next'"; ((FAIL++)); return; }
-    [[ "$result" == *"quit"* ]] || { echo "  FAIL: help missing 'quit'"; ((FAIL++)); return; }
-    echo "  PASS: help shows commands"
+    # When
+    process_command "n"
+
+    # Then
+    assert_equals "1" "$CURRENT" "CURRENT should increment"
+}
+
+test_process_command_next_at_end_stays_put() {
+    # Given
+    COMMITS=(sha1 sha2)
+    CURRENT=1
+
+    # When
+    process_command "n"
+
+    # Then
+    assert_equals "1" "$CURRENT" "CURRENT should not exceed bounds"
+}
+
+test_process_command_prev_decrements_current() {
+    # Given
+    COMMITS=(sha1 sha2 sha3)
+    CURRENT=2
+
+    # When
+    process_command "p"
+
+    # Then
+    assert_equals "1" "$CURRENT" "CURRENT should decrement"
+}
+
+test_process_command_prev_at_start_stays_put() {
+    # Given
+    COMMITS=(sha1 sha2)
+    CURRENT=0
+
+    # When
+    process_command "p"
+
+    # Then
+    assert_equals "0" "$CURRENT" "CURRENT should not go below 0"
+}
+
+test_process_command_help_shows_commands() {
+    # When
+    local result
+    result=$(process_command "h" 2>&1)
+
+    # Then
+    [[ "$result" == *"next"* ]] || { echo -e "  ${RED}FAIL${NC}: help missing 'next'"; ((FAIL++)); return; }
+    [[ "$result" == *"quit"* ]] || { echo -e "  ${RED}FAIL${NC}: help missing 'quit'"; ((FAIL++)); return; }
+    echo -e "  ${GREEN}PASS${NC}: help shows commands"
     ((PASS++))
 }
 
@@ -301,8 +356,8 @@ test_main_next_advances_commit() {
         main_loop
     " 2>&1)
 
-    [[ "$result" == *"second"* ]] || { echo "  FAIL: next should show second commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    echo "  PASS: next advances to next commit"
+    [[ "$result" == *"second"* ]] || { echo -e "  ${RED}FAIL${NC}: next should show second commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: next advances to next commit"
     ((PASS++))
 
     cd /
@@ -366,8 +421,8 @@ test_main_prev_goes_back() {
     " 2>&1)
 
     # After n, p - should be back at first
-    [[ "$result" == *"first"* ]] || { echo "  FAIL: prev should show first commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    echo "  PASS: prev goes back to previous commit"
+    [[ "$result" == *"first"* ]] || { echo -e "  ${RED}FAIL${NC}: prev should show first commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: prev goes back to previous commit"
     ((PASS++))
 
     cd /
@@ -432,11 +487,11 @@ test_aggregate_feedback_compiles_notes() {
     local result
     result=$(aggregate_feedback "HEAD~2..HEAD")
 
-    [[ "$result" == *"TPP violation"* ]] || { echo "  FAIL: missing first note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    [[ "$result" == *"used switch case"* ]] || { echo "  FAIL: missing first note message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    [[ "$result" == *"commit too large"* ]] || { echo "  FAIL: missing second note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    [[ "$result" == *"second commit"* ]] || { echo "  FAIL: missing commit message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    echo "  PASS: aggregates all notes with context"
+    [[ "$result" == *"TPP violation"* ]] || { echo -e "  ${RED}FAIL${NC}: missing first note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"used switch case"* ]] || { echo -e "  ${RED}FAIL${NC}: missing first note message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"commit too large"* ]] || { echo -e "  ${RED}FAIL${NC}: missing second note category"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    [[ "$result" == *"second commit"* ]] || { echo -e "  ${RED}FAIL${NC}: missing commit message"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: aggregates all notes with context"
     ((PASS++))
 
     cd /
@@ -452,9 +507,9 @@ test_main_flag_shows_prompts() {
         main_loop
     " 2>&1)
 
-    [[ "$result" == *"Category:"* ]] || { echo "  FAIL: should prompt for category"; ((FAIL++)); return; }
-    [[ "$result" == *"Message:"* ]] || { echo "  FAIL: should prompt for message"; ((FAIL++)); return; }
-    echo "  PASS: flag shows prompts"
+    [[ "$result" == *"Category:"* ]] || { echo -e "  ${RED}FAIL${NC}: should prompt for category"; ((FAIL++)); return; }
+    [[ "$result" == *"Message:"* ]] || { echo -e "  ${RED}FAIL${NC}: should prompt for message"; ((FAIL++)); return; }
+    echo -e "  ${GREEN}PASS${NC}: flag shows prompts"
     ((PASS++))
 }
 
@@ -496,9 +551,9 @@ test_main_drop_asks_confirmation() {
         main_loop
     " 2>&1)
 
-    [[ "$result" == *"drop"* ]] || { echo "  FAIL: should mention drop"; ((FAIL++)); return; }
-    [[ "$result" == *"2"* ]] || { echo "  FAIL: should show count of commits to drop"; ((FAIL++)); return; }
-    echo "  PASS: drop asks for confirmation"
+    [[ "$result" == *"drop"* ]] || { echo -e "  ${RED}FAIL${NC}: should mention drop"; ((FAIL++)); return; }
+    [[ "$result" == *"2"* ]] || { echo -e "  ${RED}FAIL${NC}: should show count of commits to drop"; ((FAIL++)); return; }
+    echo -e "  ${GREEN}PASS${NC}: drop asks for confirmation"
     ((PASS++))
 }
 
@@ -569,6 +624,36 @@ test_main_drop_with_yes_resets() {
     rm -rf "$test_repo"
 }
 
+test_tdd_review_restores_head_on_quit() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first"
+    echo "b" > file.txt && git add . && git commit -q -m "second"
+    echo "c" > file.txt && git add . && git commit -q -m "third"
+
+    local original_head
+    original_head=$(git rev-parse HEAD)
+    local original_file
+    original_file=$(cat file.txt)
+    assert_equals "c" "$original_file" "file should be 'c' before review"
+
+    # Navigate forward from first commit, HEAD changes
+    printf "n\nq\n" | "$SCRIPT_DIR/tdd-review" HEAD 2>&1
+
+    # After review, HEAD should be restored
+    local after_file
+    after_file=$(cat file.txt)
+    assert_equals "c" "$after_file" "file should be 'c' after quit (HEAD restored)"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_tdd_review_reads_config_file() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -587,8 +672,8 @@ test_tdd_review_reads_config_file() {
     local result
     result=$(printf "q\n" | "$SCRIPT_DIR/tdd-review" 2>&1)
 
-    [[ "$result" == *"first commit"* ]] || { echo "  FAIL: should read range from config"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    echo "  PASS: reads commit range from config file"
+    [[ "$result" == *"first commit"* ]] || { echo -e "  ${RED}FAIL${NC}: should read range from config"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: reads commit range from config file"
     ((PASS++))
 
     cd /
@@ -611,8 +696,8 @@ test_tdd_review_binary_runs() {
     result=$(printf "q\n" | "$SCRIPT_DIR/tdd-review" HEAD 2>&1)
 
     # Should show the first commit on startup
-    [[ "$result" == *"first commit"* ]] || { echo "  FAIL: should display first commit on startup"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
-    echo "  PASS: binary runs and displays first commit"
+    [[ "$result" == *"first commit"* ]] || { echo -e "  ${RED}FAIL${NC}: should display first commit on startup"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
+    echo -e "  ${GREEN}PASS${NC}: binary runs and displays first commit"
     ((PASS++))
 
     cd /
@@ -636,8 +721,12 @@ run_test test_checkout_commit_switches_to_sha
 run_test test_squash_range_combines_commits
 run_test test_aggregate_feedback_compiles_notes
 run_test test_display_commit_shows_message_and_files
-run_test test_main_quit_exits
-run_test test_main_help_shows_commands
+run_test test_process_command_quit_returns_exit
+run_test test_process_command_next_increments_current
+run_test test_process_command_next_at_end_stays_put
+run_test test_process_command_prev_decrements_current
+run_test test_process_command_prev_at_start_stays_put
+run_test test_process_command_help_shows_commands
 run_test test_main_next_checks_out_commit
 run_test test_main_next_advances_commit
 run_test test_main_prev_checks_out_commit
@@ -647,9 +736,10 @@ run_test test_main_flag_adds_note
 run_test test_main_drop_asks_confirmation
 run_test test_main_squash_to_current
 run_test test_main_drop_with_yes_resets
+run_test test_tdd_review_restores_head_on_quit
 run_test test_tdd_review_reads_config_file
 run_test test_tdd_review_binary_runs
 
 echo
-echo "=== Results: $PASS passed, $FAIL failed ==="
+echo -e "=== Results: ${GREEN}$PASS passed${NC}, ${RED}$FAIL failed${NC} ==="
 exit $FAIL

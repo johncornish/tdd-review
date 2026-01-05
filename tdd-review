@@ -40,10 +40,17 @@ if [[ ${#COMMITS[@]} -eq 0 ]]; then
     exit 1
 fi
 
+# Save original HEAD to restore on exit
+ORIGINAL_HEAD=$(git rev-parse HEAD)
+
 echo "TDD Review: ${#COMMITS[@]} commits"
 echo "Commands: n/next, p/prev, f/flag, h/help, q/quit"
 echo ""
 
+checkout_commit "${COMMITS[$CURRENT]}"
 display_commit "${COMMITS[$CURRENT]}"
 
 main_loop
+
+# Restore original HEAD
+checkout_commit "$ORIGINAL_HEAD"

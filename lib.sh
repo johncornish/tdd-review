@@ -112,24 +112,44 @@ show_help() {
     echo "  q/quit  - Quit"
 }
 
+# Returns 0 = continue, 1 = exit
+process_command() {
+    local cmd="$1"
+    case $cmd in
+        n|next)
+            if [[ $CURRENT -lt $((${#COMMITS[@]}-1)) ]]; then
+                CURRENT=$((CURRENT + 1))
+            fi
+            ;;
+        p|prev)
+            if [[ $CURRENT -gt 0 ]]; then
+                CURRENT=$((CURRENT - 1))
+            fi
+            ;;
+        h|help) show_help ;;
+        q|quit) return 1 ;;
+    esac
+    return 0
+}
+
 main_loop() {
     while read -n 1 cmd; do
         # Consume rest of line if any (handles piped input with newlines)
         read -r _ 2>/dev/null || true
         case $cmd in
-            n|next)
-                if [[ $CURRENT -lt $((${#COMMITS[@]}-1)) ]]; then
-                    ((CURRENT++))
+            n|next|p|prev)
+                local old_current=$CURRENT
+                process_command "$cmd"
+                if [[ $CURRENT -ne $old_current ]]; then
                     checkout_commit "${COMMITS[$CURRENT]}"
                     display_commit "${COMMITS[$CURRENT]}"
                 fi
                 ;;
-            p|prev)
-                if [[ $CURRENT -gt 0 ]]; then
-                    ((CURRENT--))
-                    checkout_commit "${COMMITS[$CURRENT]}"
-                    display_commit "${COMMITS[$CURRENT]}"
-                fi
+            h|help)
+                process_command "$cmd"
+                ;;
+            q|quit)
+                break
                 ;;
             f|flag)
                 local category message
