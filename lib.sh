@@ -120,12 +120,14 @@ main_loop() {
             n|next)
                 if [[ $CURRENT -lt $((${#COMMITS[@]}-1)) ]]; then
                     ((CURRENT++))
+                    checkout_commit "${COMMITS[$CURRENT]}"
                     display_commit "${COMMITS[$CURRENT]}"
                 fi
                 ;;
             p|prev)
                 if [[ $CURRENT -gt 0 ]]; then
                     ((CURRENT--))
+                    checkout_commit "${COMMITS[$CURRENT]}"
                     display_commit "${COMMITS[$CURRENT]}"
                 fi
                 ;;

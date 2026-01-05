@@ -243,6 +243,45 @@ test_main_help_shows_commands() {
     ((PASS++))
 }
 
+test_main_next_checks_out_commit() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    local sha1
+    sha1=$(git rev-parse HEAD)
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+    local sha2
+    sha2=$(git rev-parse HEAD)
+
+    # Start at first commit
+    git checkout -q "$sha1"
+
+    # File should be "a" before navigation
+    local before
+    before=$(cat file.txt)
+    assert_equals "a" "$before" "file should be 'a' before navigation"
+
+    printf "n\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=($sha1 $sha2)
+        CURRENT=0
+        main_loop
+    " 2>&1
+
+    # After 'n', file should be "b" (checked out second commit)
+    local after
+    after=$(cat file.txt)
+    assert_equals "b" "$after" "file should be 'b' after navigating to second commit"
+
+    cd /
+    rm -rf "$test_repo"
+}
+
 test_main_next_advances_commit() {
     local test_repo
     test_repo=$(mktemp -d)
@@ -265,6 +304,43 @@ test_main_next_advances_commit() {
     [[ "$result" == *"second"* ]] || { echo "  FAIL: next should show second commit"; ((FAIL++)); cd /; rm -rf "$test_repo"; return; }
     echo "  PASS: next advances to next commit"
     ((PASS++))
+
+    cd /
+    rm -rf "$test_repo"
+}
+
+test_main_prev_checks_out_commit() {
+    local test_repo
+    test_repo=$(mktemp -d)
+    cd "$test_repo"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "a" > file.txt && git add . && git commit -q -m "first commit"
+    local sha1
+    sha1=$(git rev-parse HEAD)
+    echo "b" > file.txt && git add . && git commit -q -m "second commit"
+    local sha2
+    sha2=$(git rev-parse HEAD)
+
+    # Start at second commit
+    # File should be "b" before navigation
+    local before
+    before=$(cat file.txt)
+    assert_equals "b" "$before" "file should be 'b' before navigation"
+
+    printf "p\nq\n" | bash -c "
+        source '$SCRIPT_DIR/lib.sh'
+        COMMITS=($sha1 $sha2)
+        CURRENT=1
+        main_loop
+    " 2>&1
+
+    # After 'p', file should be "a" (checked out first commit)
+    local after
+    after=$(cat file.txt)
+    assert_equals "a" "$after" "file should be 'a' after navigating to first commit"
 
     cd /
     rm -rf "$test_repo"
@@ -562,7 +638,9 @@ run_test test_aggregate_feedback_compiles_notes
 run_test test_display_commit_shows_message_and_files
 run_test test_main_quit_exits
 run_test test_main_help_shows_commands
+run_test test_main_next_checks_out_commit
 run_test test_main_next_advances_commit
+run_test test_main_prev_checks_out_commit
 run_test test_main_prev_goes_back
 run_test test_main_flag_shows_prompts
 run_test test_main_flag_adds_note
